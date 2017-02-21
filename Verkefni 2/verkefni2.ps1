@@ -41,6 +41,36 @@ function replaceISL {
  return $string2
 } # Skriptan til að búa til nöfn án Íslenska stafi, tengist liðnum með usernameið
 
+Function Get-FileName($initialDirectory)
+{
+    ##ætlaði að búa þetta til en fann þetta hér:
+    #Var frekar basic að skilja
+    [System.Reflection.Assembly]::LoadWithPartialName("System.windows.forms") | Out-Null
+    
+    $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $OpenFileDialog.initialDirectory = $initialDirectory
+    $OpenFileDialog.filter = "CSV (*.csv)| *.csv"
+    $OpenFileDialog.ShowDialog() | Out-Null
+}
+
+function Import-csvfile
+{
+Function Get-FileName($initialDirectory)
+{
+    ##ætlaði að búa þetta til en fann þetta hér:
+    #Var frekar basic að skilja
+    [System.Reflection.Assembly]::LoadWithPartialName("System.windows.forms") | Out-Null
+    
+    $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $OpenFileDialog.initialDirectory = $initialDirectory
+    $OpenFileDialog.filter = "CSV (*.csv)| *.csv"
+    $OpenFileDialog.ShowDialog() | Out-Null
+    $OpenFileDialog.filename
+}
+$csv = Get-FileName
+Import-Csv $csv -Encoding Default
+
+}
 
 function BuaTilGPO #Búa til GPO með powershell
 {
@@ -56,6 +86,8 @@ New-GPO $gpo
 New-GPLink -Target $oudistname -Order 1 -Name $GPOname
 return $gpo
 }
+
+$csv = Import-csvfile
 
 #Fyrsti liður 
 New-NetIPAddress -InterfaceAlias "Boom" -IPAddress 172.16.24.1 -PrefixLength 21 #-DefaultGateway 192.168.1.1 notum ekki default gateway
@@ -113,8 +145,7 @@ New-SmbShare -Name Homedir -Path $path\Homedir -FullAccess $domainname\NotendurA
 
 Add-PrinterDriver -Name "Brother Color Type3 Class Driver"
 Add-Printer -Name "Sameign prentari2" -Location "Sameign" -Shared -PortName LPT1: -Drivername "Brother Color Type3 Class Driver" -Published 
-$notendur = Import-Csv "C:\Users\Administrator\OneDrive\Tskoli2017\WIN3B3U\Verkefni 2\v2notendur_u.csv" -Encoding UTF8
-
+$notendur = Import-csvfile
 
 foreach($n in $notendur)
 {
