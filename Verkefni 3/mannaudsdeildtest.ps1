@@ -1,121 +1,4 @@
-﻿#Það var smávægileg villa í csv skránni sem þið fenguð, þeir sem voru skráðir í Tæknideild á
-#Akureyri áttu að vera skráðir í Tæknideild í Kópavogi og þeir sem voru skráðir í Tæknideildina í
-#Kópavogi áttu að vera í Tæknideildinni á Akureyri. Þið þurfið að leiðrétta þetta gagnvart OU-um,
-#hópum og starfsmannanúmerum
-
-function switchadeildum #hægt væri að implementa breytur svo að deildir væru ekki harðkóðaðar inn, en til að sýna hvernig virkar er kommentað inni
-{
-Import-Module ActiveDirectory
-$AK = Get-ADOrganizationalUnit -Filter {name -like "Akureyri"} #finna og einangra AK OU
-$AKtaeknideild = Get-ADOrganizationalUnit -SearchBase $AK -Filter {name -like "Tæknideild"} -Properties * #finna og einangra tæknideildina inní AK 
-$AKCache = Get-ADUser -SearchBase $AKtaeknideild -Filter * #Sækja alla usera og setja í cache
-$AKgroup= Get-ADGroup -SearchBase $AKtaeknideild -Filter {name -like "*tæknideild*"} #sækir AK grúppuna
-$AKGroupmembers =  $AKgroup | Get-ADGroupMember
-
-$KOP = Get-ADOrganizationalUnit -Filter {name -like "Kópavögur"} #endurtekið það sem er fyrir ofan nema með nýrri deild
-$KOPtaeknideild = Get-ADOrganizationalUnit -SearchBase $KOP -Filter {name -like "Tæknideild"} -Properties *
-$KopCache = Get-ADUser -SearchBase $KOPtaeknideild -Filter *
-$KOPgroup= Get-ADGroup -SearchBase $KOPtaeknideild -Filter {name -like "*tæknideild*"}
-$KOPgroupmembers = $KOPgroup | Get-ADGroupMember
-
-foreach ($A in $AKGroupmembers) #Foreach lykkjur til að losa okkur við þessa úr grúppunum
-{
-Remove-ADGroupMember -Identity $AKgroup -Members $A.SamAccountName #
-}
-
-foreach ($K in $KOPgroupmembers) #sama og að ofan nema með Kóp
-{
-Remove-ADGroupMember -Identity $KOPgroup -Members $K.SamAccountName 
-}
-
-foreach($Akuser in $AKCache) #vinnur úr AK notendunum og gefur þeim ný employee númer og færir þá í veiðeigandi grúppu og OU
-{
-$empnumb = $Akuser.EmployeeNumber;  
-$empnumb = $empnumb -replace 'Ak','Kó' #skiptir út employeenumber sem var t.d. AkSala2 í KóSala2
-$Akuser.EmployeeNumber = $empnumb #virkaði ekki? / Virkar núna það er víst ekki í lagi að nota " frekar nota '
-$Akuser | Move-ADObject -TargetPath $KOPtaeknideild
-Add-ADGroupMember -Identity $KOPgroup -Members $Akuser
-}
-
-foreach($Kopuser in $KopCache) #sama og að ofan nema öfugt
-{
-$empnumb = $Kopuser.EmployeeNumber;
-$empnumb = $empnumb -replace 'Kó','A'
-$Kopuser.EmployeeNumber = $empnumb
-$Kopuser | Move-ADObject -TargetPath $AKtaeknideild
-Add-ADGroupMember -Identity $AKgroup -Members $Kopuser
-}
-
-$AKtaeknideild = Get-ADOrganizationalUnit -SearchBase $AK -Filter {name -like "Tæknideild"} -Properties * #finna og einangra tæknideildina inní AK 
-$newAk = Get-ADUser -SearchBase $AKtaeknideild -Filter * -Properties * #Sækja alla usera og setja í cache
-
-$KOPtaeknideild = Get-ADOrganizationalUnit -SearchBase $KOP -Filter {name -like "Tæknideild"} -Properties *
-$newKop = Get-ADUser -SearchBase $KOPtaeknideild -Filter * -Properties *
-
-foreach($new in $newAk) #Notaðist því hitt var að stríða því ég var með " en ekki ' en hitt virkar eins og það er en skil þetta eftir hér að gamni...
-{
-$new.EmployeeNumber = $new.EmployeeNumber -replace 'Kó','Ak'
-$new.EmployeeNumber
-}
-
-foreach($new in $newKop)
-{
-$new.EmployeeNumber = $new.EmployeeNumber -replace 'Ak','Kó'
-$new.EmployeeNumber
-}
-
-
-
-}
-#Búið til hópa (e. group) fyrir alla sem eru í sömu deild en á mismunandi skrifstofum. Það eru til
-#dæmis tölvudeildir á Ísafirði og í Reykjavík, við viljum fá nýjan hóp sem heitir AllarTölvudeildir og
-#inniheldur hópana úr tölvudeildunum á Ísafirði og Reykjavík.
-
-function EveryBodyGetsAGroup #býr til Allar deildir fyrir sameignileg svið og bætir við réttu fólki í réttar deildir
-{
-$masterou = Get-ADOrganizationalUnit -Filter {name -like "Notendur"} #Master ou hérna er aðal OU með það hér fyrir aukin þægindi
-$groupstobe = Get-ADOrganizationalUnit -SearchBase $masterou -filter {name -notlike "Notendur"} ##þessi sér um að finna hvern einasta grúp og mun vinna úr þeim til að búa til viðeigandi deildir 
-
-$groups = @()
-$gruppa = ""
-
-
-foreach ($g in $groupstobe) #hjólar í gegnum nöfnin á OU sem eru til 
-{
-
-$gname = Get-ADOrganizationalUnit -SearchBase $g -Properties name -filter *
-$groups += $gname.name #bætir í grúps því í raun þarf ég bara að vinna með nöfnin á þessu
-
-
-}
-
-$groups = $groups | select -Unique #það eru til nokkrar ***tæknideild*** undir t.d. RVKtæknideild og þannig svo þar sem ég er bara vinna með einn overall group nota ég unique til að finna bara 1 nafn af hverju
-
-
-foreach($g in $groups)
-{
-if(((Get-ADGroup -Filter{name -eq $g}).name -ne $g) -and $g -ne "Tolvur") #smá dirty hérna með Tolvur... 
-{
-
-$nafndeildar = "Allar$g" + "ir" #Verkefnið vildi að þetta hét AllarXir svo svona geri ég það
-$name = "*$g*" #vildi ekki virka nema ég útfærði þetta svona
-$members =  Get-ADGroup -SearchBase $masterou -Filter {name -like $name} ##grípur deildirnar sem innihalda þá tæknideild,mannauðsdeild etc til að færa yfir í grúppuna
-New-ADGroup -Name $nafndeildar -Path $masterou.DistinguishedName -GroupScope Global 
-$gruppa = Get-ADGroup -Filter {name -like $nafndeildar} #var með þetta pipelineað en það var að skila villum, en þetta virkaði svona síðan
-Add-ADGroupMember -Identity $gruppa -Members $members
-"Grúppa " + $nafndeildar + " Stofnuð"
-
-}
-
-}
-
-
-}
-#Mannauðsdeildin á Egilsstöðum sér um notendaumsjón. Þið þurfið að gefa þeim réttindi til þess
-#(e. delegation) (þarf ekki að leysa með Powershell). Þið þurfið svo að skrifa lítið GUI forrit í
-#Powershell fyrir þá þar sem þeir geta fundið notendur eftir nafni, breytt lykilorðum og
-#disable/enable notendur.
-
+﻿
 function GUI #Notast er við gögn guið sem kennarinn útveigaði ásamt breytum
 {
 #Hleð inn klösum fyrir GUI, svipað og References í C#
@@ -150,6 +33,9 @@ param(
 [Parameter(Mandatory)]
 $user
 )
+$error.Clear()
+try {
+if(!$error){
 $aduser = Get-ADUser $user
 if ($aduser.Enabled -eq $True)
 {
@@ -165,6 +51,14 @@ $wshell = New-Object -ComObject Wscript.Shell
 
 $wshell.Popup($aduser.SamAccountName + " Enabled",0,"Enable/Disable")
 }
+}
+}
+catch{$error}
+if($error){
+$wshell = New-Object -ComObject Wscript.Shell
+
+$wshell.Popup("Aðgerð gekk ekki, hafðu samband við Administrator" ,0,"Password Reset")
+}
 
 
 }
@@ -174,15 +68,26 @@ param(
 [Parameter(Mandatory)]
 $user
 )
+try {
+if(!$error){
 $aduser = Get-ADUser $user -Properties *
 $aduser.SamAccountName | Set-ADAccountPassword -NewPassword (ConvertTo-SecureString -AsPlainText "pass.123" -Force)
 $wshell = New-Object -ComObject Wscript.Shell
 
 $wshell.Popup("Password reset at: " + $aduser.SamAccountName ,0,"Password Reset")
-
-
-
 }
+}
+catch{$error}
+if($error){
+$wshell = New-Object -ComObject Wscript.Shell
+
+$wshell.Popup("Aðgerð gekk ekki, hafðu samband við Administrator" ,0,"Password Reset")
+}
+}
+
+
+
+
 # er ekki að nota þetta þar sem það var ekki nauðsynjað, ef ég hef tíma þá mun ég setja þetta inn og láta koma popup sem biður um nýtt password
 function ChangePassword {
 param(
@@ -369,6 +274,4 @@ $frmLeita.Controls.Add($lstNidurstodur)
 $frmLeita.ShowDialog()
 
 }
-
-
 GUI

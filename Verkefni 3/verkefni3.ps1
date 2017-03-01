@@ -150,6 +150,7 @@ param(
 [Parameter(Mandatory)]
 $user
 )
+try {
 $aduser = Get-ADUser $user
 if ($aduser.Enabled -eq $True)
 {
@@ -165,6 +166,12 @@ $wshell = New-Object -ComObject Wscript.Shell
 
 $wshell.Popup($aduser.SamAccountName + " Enabled",0,"Enable/Disable")
 }
+}
+catch{
+$wshell = New-Object -ComObject Wscript.Shell
+
+$wshell.Popup("Aðgerð gekk ekki, hafðu samband við Administrator" ,0,"Enable/Disable Error")
+}
 
 
 }
@@ -174,11 +181,18 @@ param(
 [Parameter(Mandatory)]
 $user
 )
+try {
 $aduser = Get-ADUser $user -Properties *
 $aduser.SamAccountName | Set-ADAccountPassword -NewPassword (ConvertTo-SecureString -AsPlainText "pass.123" -Force)
 $wshell = New-Object -ComObject Wscript.Shell
 
 $wshell.Popup("Password reset at: " + $aduser.SamAccountName ,0,"Password Reset")
+}
+catch{
+$wshell = New-Object -ComObject Wscript.Shell
+
+$wshell.Popup("Aðgerð gekk ekki, hafðu samband við Administrator" ,0,"Password Reset")
+}
 
 
 
