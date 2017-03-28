@@ -94,6 +94,7 @@ $info.Add("username:",$samname)
 return $info
 
 }
+
 #setur þetta eftir Import-csv þetta leyfir þér að navigate-a í gegnum file explorer þarft ekki að skrifa pathið
 function Import-csvfile
 {
@@ -272,17 +273,22 @@ foreach($n in $notendur)
 
 }
 
+#hérna er græjað bara bbp.is síðuna, búið til bbp möppu sem geymir indexið fyrir bbp
 New-Item "C:\bbp\Vefir\" -ItemType Directory
 New-Item "C:\bbp\Vefir\bbp\index.html" -type file -force -value "Velkominn á vefsvæði bbp!! eða ddp fer eftir hvort þú vilt"
+#stofna nýja website í IIS
 New-WebSite -Name "bbp.is" -Port 80 -HostHeader "bbp.is" -PhysicalPath "C:\bbp\Vefir\bbp\"
+#Bindi www.bbp.is við það
 New-WebBinding -Name "bbp.is" -Port 80 -HostHeader "www.bbp.is" -IPAddress * 
+#stilli svo viðeigandi dns
 Add-DnsServerPrimaryZone -Name "bbp.is" -ReplicationScope Domain
 Add-DnsServerResourceRecordA -ZoneName "bbp.is" -Name "bbp.is" -IPv4Address 10.201.190.220
 Add-DnsServerResourceRecordA -ZoneName "bbp.is" -Name "www" -IPv4Address 10.201.190.220
+#flushadns til öryggis
 ipconfig /flushdns
 
 
-
+#sama og að ofan nema bara með breytunöfnum fyrir deildirnar
 function AllirFaSidur
 {
 $master = Get-ADOrganizationalUnit -Filter {name -like "Notendur"}
@@ -306,3 +312,6 @@ Add-DnsServerResourceRecordA -ZoneName "$zonename" -Name "$zonename" -IPv4Addres
 ipconfig /flushdns
 
 }
+
+
+Install-WindowsFeature –Name WindowsPowerShellWebAccess -ComputerName Win3B-w81-07 -IncludeManagementTools -Restart
